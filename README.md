@@ -58,4 +58,4 @@ requirements.txt
 
 ## GitHub
 
-Initialize and maintain this directory as a Git repository, commit the source and documentation, then create/push to a GitHub repository using your GitHub account. No remote repository was supplied, so this workspace is not pushed to GitHub.
+Source and documentation are published in the [PRML-DT-Classifier repository](https://github.com/nitflame/PRML-DT-Classifier).
