@@ -1,15 +1,26 @@
-"""Metrics and confusion-matrix helpers."""
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 
-
-def evaluate(y_true, y_pred, labels):
+def compute_diagnostic_metrics(y_true, y_pred, model_name: str) -> dict:
+    acc = accuracy_score(y_true, y_pred)
+    prec, rec, f1, _ = precision_recall_fscore_support(y_true, y_pred, average='weighted', zero_division=0)
     return {
-        "Accuracy": accuracy_score(y_true, y_pred),
-        "Precision (macro)": precision_score(y_true, y_pred, average="macro", zero_division=0),
-        "Recall (macro)": recall_score(y_true, y_pred, average="macro", zero_division=0),
-        "F1 (macro)": f1_score(y_true, y_pred, average="macro", zero_division=0),
-        "Precision (weighted)": precision_score(y_true, y_pred, average="weighted", zero_division=0),
-        "Recall (weighted)": recall_score(y_true, y_pred, average="weighted", zero_division=0),
-        "F1 (weighted)": f1_score(y_true, y_pred, average="weighted", zero_division=0),
-        "Confusion matrix": confusion_matrix(y_true, y_pred, labels=labels),
+        "Model": model_name,
+        "Accuracy": acc,
+        "Precision (Weighted)": prec,
+        "Recall (Weighted)": rec,
+        "F1-Score (Weighted)": f1
     }
+
+def generate_confusion_matrix_plot(y_true, y_pred, target_labels=None):
+    cm = confusion_matrix(y_true, y_pred)
+    fig, ax = plt.subplots(figsize=(4, 3.5))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+                xticklabels=target_labels if target_labels is not None else True,
+                yticklabels=target_labels if target_labels is not None else True, ax=ax)
+    ax.set_xlabel('Predicted Model Target')
+    ax.set_ylabel('True Reference Label')
+    plt.tight_layout()
+    return fig

@@ -1,61 +1,52 @@
-# Decision Tree Classification Studio
+# PRML Projects — Decision Tree Studio
 
-A modular Streamlit app for uploading a CSV, exploring and preprocessing its columns, training custom ID3 and C4.5 classification trees, evaluating predictions, and trying single-row predictions.
+An interactive React dashboard for exploring classification trees and decision costs. Import a CSV, choose its target column, rebuild ID3 or C4.5 as parameters change, inspect the tree and holdout metrics, and compare confusion counts with realized loss. CSV data is processed locally in the browser.
 
-## Run locally
+## Run the React dashboard
 
-Requires Python 3.10 or newer. From this directory:
+Requires Node.js 20.19+ or 22.12+.
+
+```bash
+npm install
+npm run dev
+```
+
+Use the local URL printed by Vite. Create a static production build with `npm run build` and serve `dist/` from any static web server.
+
+## Dashboard capabilities
+
+- Import arbitrary UTF-8 CSV datasets with headers and select any target column.
+- Inspect dataset dimensions, missing values, class balance, and a row preview.
+- Rebuild ID3/C4.5 trees interactively with depth, minimum leaf size, holdout split, and class-prior controls.
+- Edit the action-by-class loss matrix and inspect conditional risk curves and the resulting decision threshold.
+- Compare accuracy, macro precision/recall/F1, confusion counts, and accumulated holdout loss.
+- Export the current tree and evaluation snapshot as JSON.
+
+The browser implementation supports classification data with modest feature and class counts. It includes numeric midpoint splitting, categorical splits, deterministic stratified holdout, and train-fitted missing-value imputation. The binary risk plot applies to two-class targets; multiclass targets use the risk-vector display.
+
+## Python classifier and Streamlit reference app
+
+The Python classifier, preprocessing, and evaluation modules remain available for command-line and research workflows. The original Streamlit interface is retained in `app.py` for compatibility; the React dashboard is the primary interface.
 
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The included `data_breast_cancer.csv` opens as a starter dataset. Choose `Status` as its target to predict Alive/Dead. Upload other CSV files from the sidebar (maximum 50 MB).
+Run a classifier smoke check by importing `DecisionTree` from `src.models`. Details on algorithms and current Python preprocessing behavior are documented in the module docstrings and source.
 
-## Features
-
-- CSV preview, dimensions, dtypes, missing-value counts, and class-count/task detection.
-- Mean/median numeric imputation; mode/constant categorical imputation; label or one-hot encoding.
-- Reproducible train/test split, stratified when class counts permit.
-- Custom recursive ID3 (entropy/information gain, categorical multiway splits) and C4.5 (gain ratio, categorical multiway and numeric threshold splits).
-- Depth, minimum split size, and minimum information-gain controls.
-- Graphviz tree diagrams, macro/weighted precision/recall/F1, accuracy, confusion matrices, comparative metrics and delta chart.
-- Dynamic one-row prediction form for both trained models.
-
-## Architecture
+## Repository layout
 
 ```text
-CSV upload ──> app.py (Streamlit UI and workflow)
-                  │
-                  ├── src/preprocessing.py (cleaning, imputation, encoding, split)
-                  ├── src/models.py (custom ID3 and C4.5 recursive trees, DOT output)
-                  └── src/evaluation.py (metrics and confusion matrix)
+index.html                 React entry document
+src/main.jsx               React entry point
+src/DecisionStudio.jsx     dashboard, tree builder, risk and metric views
+src/technical.css          technical grid and color system
+public/data_breast_cancer.csv  bundled starter dataset
+app.py                     retained Streamlit reference application
+src/models.py              Python ID3/C4.5 classifier
+src/preprocessing.py       Python data preparation
+src/evaluation.py          Python metric helpers
 ```
-
-## Algorithm notes
-
-For a node with class entropy `H(T)`, information gain is `IG(T,a) = H(T) - Σᵥ (|Tᵥ|/|T|) H(Tᵥ)`. Split information is `SplitInfo(T,a) = -Σᵥ pᵥ log₂(pᵥ)` and gain ratio is `IG / SplitInfo`.
-
-ID3 treats numeric values as categorical values. This is faithful to the classic discrete ID3 rule but may produce broad trees on continuous or high-cardinality data. C4.5 checks numeric midpoints and applies gain ratio; its candidate list is capped at 128 evenly spaced thresholds for high-cardinality features. This is an educational implementation rather than Quinlan's complete C4.5 implementation (which includes pruning, missing-value routing, and further safeguards). Neither algorithm here is CART; scikit-learn's `DecisionTreeClassifier` implements CART-style binary trees.
-
-Preprocessing currently estimates imputations before splitting, which can introduce mild information leakage. For formal experiments, split first and fit preprocessing statistics on training data only. Performance results depend on target, split, and settings; the app displays live results rather than claiming a fixed benchmark.
-
-## Source layout
-
-```text
-app.py
-src/
-  preprocessing.py
-  models.py
-  evaluation.py
-data_breast_cancer.csv
-requirements.txt
-```
-
-## GitHub
-
-Source and documentation are published in the [PRML-DT-Classifier repository](https://github.com/nitflame/PRML-DT-Classifier).

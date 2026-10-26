@@ -1,56 +1,50 @@
-"""Dataset validation, preprocessing, and reproducible train/test splitting."""
-from __future__ import annotations
-
-import numpy as np
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
+class DataPreprocessor:
+    def __init__(self):
+        self.label_encoders = {}
+        self.target_encoder = None
+        
+    def impute_missing(self, df: pd.DataFrame, target_col: str, strategy_num: str = 'median', strategy_cat: str = 'mode') -> pd.DataFrame:
+        df = df.copy()
+        for col in df.columns:
+            if col == target_col:
+                df = df.dropna(subset=[target_col])
+                continue
+                
+            if df[col].isnull().sum() > 0:
+                if pd.api.types.is_numeric_dtype(df[col]):
+                    val = df[col].median() if strategy_num == 'median' else df[col].mean()
+                    df[col] = df[col].fillna(val)
+                else:
+                    val = df[col].mode()[0] if not df[col].mode().empty else "Unknown"
+                    df[col] = df[col].fillna(val)
+        return df
 
-def clean_frame(frame: pd.DataFrame) -> pd.DataFrame:
-    df = frame.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    if df.columns.duplicated().any():
-        raise ValueError("Column names must be unique after trimming whitespace.")
-    return df.replace(r"^\s*$", np.nan, regex=True)
-
-
-def preprocess(frame: pd.DataFrame, target: str, numeric_imputation: str = "median",
-               categorical_imputation: str = "mode", categorical_constant: str = "Unknown",
-               encoding: str = "Label Encoding"):
-    df = clean_frame(frame)
-    if target not in df or df[target].isna().all():
-        raise ValueError("Choose a target column containing at least one non-missing value.")
-    df = df.loc[df[target].notna()].copy()
-    y = df.pop(target).astype(str)
-    X = df.copy()
-    categorical = list(X.select_dtypes(exclude=np.number).columns)
-    numeric = [c for c in X.columns if c not in categorical]
-    for col in numeric:
-        if X[col].isna().any():
-            val = X[col].mean() if numeric_imputation == "mean" else X[col].median()
-            X[col] = X[col].fillna(val)
-    for col in categorical:
-        if X[col].isna().any():
-            mode = X[col].mode(dropna=True)
-            val = categorical_constant if categorical_imputation == "constant" or mode.empty else mode.iloc[0]
-            X[col] = X[col].fillna(val).astype(str)
+    def encode_features(self, df: pd.DataFrame, target_col: str, encoding_type: str = 'Label Encoding') -> tuple[pd.DataFrame, list]:
+        df = df.copy()
+        feature_cols = [c for c in df.columns if c != target_col]
+        
+        self.target_encoder = LabelEncoder()
+        df[target_col] = self.target_encoder.fit_transform(df[target_col].astype(str))
+        
+        categorical_features = [c for c in feature_cols if not pd.api.types.is_numeric_dtype(df[c])]
+        
+        if encoding_type == 'One-Hot Encoding' and len(categorical_features) > 0:
+            df = pd.get_dummies(df, columns=categorical_features, drop_first=False)
+            feature_cols = [c for c in df.columns if c != target_col]
         else:
-            X[col] = X[col].astype(str)
-    if encoding == "One-Hot Encoding":
-        X = pd.get_dummies(X, columns=categorical, dtype=float)
-        feature_kinds = {c: "numeric" for c in X.columns}
-    else:
-        # Keep nominal fields nominal for the multiway ID3 splits; C4.5 can
-        # still treat numeric source columns as continuous thresholds.
-        X = X.copy()
-        for c in categorical:
-            values = sorted(X[c].astype(str).unique())
-            X[c] = pd.Categorical(X[c].astype(str), categories=values).codes
-        feature_kinds = {c: ("categorical" if c in categorical else "numeric") for c in X.columns}
-    return X.reset_index(drop=True), y.reset_index(drop=True), feature_kinds
+            for col in categorical_features:
+                le = LabelEncoder()
+                df[col] = le.fit_transform(df[col].astype(str))
+                self.label_encoders[col] = le
+                
+        return df, feature_cols
 
-
-def split_data(X, y, test_size=0.2, random_seed=42):
-    counts = y.value_counts()
-    stratify = y if len(counts) > 1 and counts.min() >= 2 else None
-    return train_test_split(X, y, test_size=test_size, random_state=random_seed, stratify=stratify)
+    def split_data(self, df: pd.DataFrame, target_col: str, feature_cols: list, test_size: float, random_state: int):
+        X = df[feature_cols].to_numpy()
+        y = df[target_col].to_numpy()
+        return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
