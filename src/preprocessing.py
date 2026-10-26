@@ -45,6 +45,6 @@ class DataPreprocessor:
         return df, feature_cols
 
     def split_data(self, df: pd.DataFrame, target_col: str, feature_cols: list, test_size: float, random_state: int):
-        X = df[feature_cols].to_numpy()
-        y = df[target_col].to_numpy()
+        X = df[feature_cols]
+        y = df[target_col]
         return train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)

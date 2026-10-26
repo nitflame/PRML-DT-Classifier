@@ -46,6 +46,8 @@ class DecisionTree:
         self.min_impurity_decrease = min_impurity_decrease
 
     def fit(self, X, y):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=[f"feature_{i}" for i in range(X.shape[1])])
         self.features_ = list(X.columns)
         self.root_ = self._grow(X.reset_index(drop=True), pd.Series(y).reset_index(drop=True), 0, set())
         return self
@@ -120,12 +122,17 @@ class DecisionTree:
                 key = ("≤" if float(row[node.feature]) <= node.threshold else ">") + f" {node.threshold:.6g}"
             else:
                 key = str(row[node.feature])
-            node = node.children.get(key, node)
+            next_node = node.children.get(key)
+            if next_node is None:
+                return node.prediction
+            node = next_node
             if node.feature is None:
                 return node.prediction
         return node.prediction
 
     def predict(self, X):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X, columns=getattr(self, 'features_', [f"feature_{i}" for i in range(X.shape[1])]))
         return np.asarray([self._predict_one(row, self.root_) for _, row in X.iterrows()], dtype=object)
 
     def to_dot(self, max_nodes=500):
